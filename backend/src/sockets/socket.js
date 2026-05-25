@@ -81,6 +81,7 @@ const initializeSocket = (server) => {
     // Join Chat Room
     // =========================================
     socket.on("join_chat", (data) => {
+        console.log(data);
       try {
         const { userId } = data;
 

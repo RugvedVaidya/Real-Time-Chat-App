@@ -1,6 +1,8 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
+const Message = require("../models/message.model");
+
 const onlineUsers = new Map();
 
 const initializeSocket = (server) => {
@@ -10,13 +12,19 @@ const initializeSocket = (server) => {
     },
   });
 
-  // Socket Authentication Middleware
+  // =========================
+  // Socket Authentication
+  // =========================
   io.use((socket, next) => {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.query.token;
+      const token =
+        socket.handshake.auth.token ||
+        socket.handshake.query.token;
 
       if (!token) {
-        return next(new Error("Authentication error"));
+        return next(
+          new Error("Authentication error")
+        );
       }
 
       const decoded = jwt.verify(
@@ -32,24 +40,72 @@ const initializeSocket = (server) => {
     }
   });
 
+  // =========================
+  // Connection Established
+  // =========================
   io.on("connection", (socket) => {
     console.log(
       `User Connected: ${socket.userId}`
     );
 
     // Store Online User
-    onlineUsers.set(socket.userId, socket.id);
+    onlineUsers.set(
+      socket.userId,
+      socket.id
+    );
 
     console.log("Online Users:");
     console.log(onlineUsers);
 
-    // Test Event
-    socket.on("send_message", (data) => {
-      console.log(data);
+    // =========================
+    // Private Messaging
+    // =========================
+    socket.on(
+      "private_message",
+      async (data) => {
+        try {
+          const { receiverId, content } =
+            data;
 
-      io.emit("receive_message", data);
-    });
+          // Save Message To DB
+          const message =
+            await Message.create({
+              senderId: socket.userId,
+              receiverId,
+              content,
+            });
 
+          // Find Receiver Socket
+          const receiverSocketId =
+            onlineUsers.get(receiverId);
+
+          // Send Message If Receiver Online
+          if (receiverSocketId) {
+            io.to(receiverSocketId).emit(
+              "receive_message",
+              {
+                senderId: socket.userId,
+                receiverId,
+                content,
+                createdAt:
+                  message.createdAt,
+              }
+            );
+          }
+
+          console.log("Message Sent");
+        } catch (error) {
+          console.error(
+            "Message Error:",
+            error
+          );
+        }
+      }
+    );
+
+    // =========================
+    // Disconnect
+    // =========================
     socket.on("disconnect", () => {
       console.log(
         `User Disconnected: ${socket.userId}`

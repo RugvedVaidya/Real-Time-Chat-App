@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
 const Message = require("../models/message.model");
+const User = require("../models/user.model");
 
 const onlineUsers = new Map();
 
@@ -12,9 +13,9 @@ const initializeSocket = (server) => {
     },
   });
 
-  // =========================
-  // Socket Authentication
-  // =========================
+  // ====================================
+  // Socket Authentication Middleware
+  // ====================================
   io.use((socket, next) => {
     try {
       const token =
@@ -40,10 +41,10 @@ const initializeSocket = (server) => {
     }
   });
 
-  // =========================
+  // ====================================
   // Connection Established
-  // =========================
-  io.on("connection", (socket) => {
+  // ====================================
+  io.on("connection", async (socket) => {
     console.log(
       `User Connected: ${socket.userId}`
     );
@@ -54,12 +55,29 @@ const initializeSocket = (server) => {
       socket.id
     );
 
+    // Update User Status
+    await User.findByIdAndUpdate(
+      socket.userId,
+      {
+        status: "online",
+        lastSeen: null,
+      }
+    );
+
+    // Broadcast Online Status
+    socket.broadcast.emit(
+      "user_online",
+      {
+        userId: socket.userId,
+      }
+    );
+
     console.log("Online Users:");
     console.log(onlineUsers);
 
-    // =========================
+    // ====================================
     // Private Messaging
-    // =========================
+    // ====================================
     socket.on(
       "private_message",
       async (data) => {
@@ -67,7 +85,7 @@ const initializeSocket = (server) => {
           const { receiverId, content } =
             data;
 
-          // Save Message To DB
+          // Save Message
           const message =
             await Message.create({
               senderId: socket.userId,
@@ -79,7 +97,7 @@ const initializeSocket = (server) => {
           const receiverSocketId =
             onlineUsers.get(receiverId);
 
-          // Send Message If Receiver Online
+          // Send Message If Online
           if (receiverSocketId) {
             io.to(receiverSocketId).emit(
               "receive_message",
@@ -103,9 +121,9 @@ const initializeSocket = (server) => {
       }
     );
 
-    // =========================
+    // ====================================
     // Typing Indicator
-    // =========================
+    // ====================================
     socket.on("typing", (data) => {
       try {
         const { receiverId } = data;
@@ -129,9 +147,9 @@ const initializeSocket = (server) => {
       }
     });
 
-    // =========================
+    // ====================================
     // Stop Typing
-    // =========================
+    // ====================================
     socket.on(
       "stop_typing",
       (data) => {
@@ -158,19 +176,42 @@ const initializeSocket = (server) => {
       }
     );
 
-    // =========================
+    // ====================================
     // Disconnect
-    // =========================
-    socket.on("disconnect", () => {
-      console.log(
-        `User Disconnected: ${socket.userId}`
-      );
+    // ====================================
+    socket.on(
+      "disconnect",
+      async () => {
+        console.log(
+          `User Disconnected: ${socket.userId}`
+        );
 
-      onlineUsers.delete(socket.userId);
+        // Remove From Online Users
+        onlineUsers.delete(
+          socket.userId
+        );
 
-      console.log("Online Users:");
-      console.log(onlineUsers);
-    });
+        // Update User Status
+        await User.findByIdAndUpdate(
+          socket.userId,
+          {
+            status: "offline",
+            lastSeen: new Date(),
+          }
+        );
+
+        // Broadcast Offline Status
+        socket.broadcast.emit(
+          "user_offline",
+          {
+            userId: socket.userId,
+          }
+        );
+
+        console.log("Online Users:");
+        console.log(onlineUsers);
+      }
+    );
   });
 };
 

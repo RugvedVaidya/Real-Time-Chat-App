@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
 
+const getRoomId = require("../utils/getRoomId");
+
 const onlineUsers = new Map();
 
 const initializeSocket = (server) => {
@@ -13,9 +15,9 @@ const initializeSocket = (server) => {
     },
   });
 
-  // ====================================
+  // =========================================
   // Socket Authentication Middleware
-  // ====================================
+  // =========================================
   io.use((socket, next) => {
     try {
       const token =
@@ -41,9 +43,9 @@ const initializeSocket = (server) => {
     }
   });
 
-  // ====================================
+  // =========================================
   // Connection Established
-  // ====================================
+  // =========================================
   io.on("connection", async (socket) => {
     console.log(
       `User Connected: ${socket.userId}`
@@ -75,9 +77,34 @@ const initializeSocket = (server) => {
     console.log("Online Users:");
     console.log(onlineUsers);
 
-    // ====================================
+    // =========================================
+    // Join Chat Room
+    // =========================================
+    socket.on("join_chat", (data) => {
+      try {
+        const { userId } = data;
+
+        const roomId = getRoomId(
+          socket.userId,
+          userId
+        );
+
+        socket.join(roomId);
+
+        console.log(
+          `${socket.userId} joined room ${roomId}`
+        );
+      } catch (error) {
+        console.error(
+          "Join Room Error:",
+          error
+        );
+      }
+    });
+
+    // =========================================
     // Private Messaging
-    // ====================================
+    // =========================================
     socket.on(
       "private_message",
       async (data) => {
@@ -93,25 +120,27 @@ const initializeSocket = (server) => {
               content,
             });
 
-          // Find Receiver Socket
-          const receiverSocketId =
-            onlineUsers.get(receiverId);
+          // Create Room ID
+          const roomId = getRoomId(
+            socket.userId,
+            receiverId
+          );
 
-          // Send Message If Online
-          if (receiverSocketId) {
-            io.to(receiverSocketId).emit(
-              "receive_message",
-              {
-                senderId: socket.userId,
-                receiverId,
-                content,
-                createdAt:
-                  message.createdAt,
-              }
-            );
-          }
+          // Emit Message To Room
+          io.to(roomId).emit(
+            "receive_message",
+            {
+              senderId: socket.userId,
+              receiverId,
+              content,
+              createdAt:
+                message.createdAt,
+            }
+          );
 
-          console.log("Message Sent");
+          console.log(
+            `Message sent in room ${roomId}`
+          );
         } catch (error) {
           console.error(
             "Message Error:",
@@ -121,24 +150,24 @@ const initializeSocket = (server) => {
       }
     );
 
-    // ====================================
+    // =========================================
     // Typing Indicator
-    // ====================================
+    // =========================================
     socket.on("typing", (data) => {
       try {
         const { receiverId } = data;
 
-        const receiverSocketId =
-          onlineUsers.get(receiverId);
+        const roomId = getRoomId(
+          socket.userId,
+          receiverId
+        );
 
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit(
-            "user_typing",
-            {
-              senderId: socket.userId,
-            }
-          );
-        }
+        socket.to(roomId).emit(
+          "user_typing",
+          {
+            senderId: socket.userId,
+          }
+        );
       } catch (error) {
         console.error(
           "Typing Error:",
@@ -147,26 +176,26 @@ const initializeSocket = (server) => {
       }
     });
 
-    // ====================================
+    // =========================================
     // Stop Typing
-    // ====================================
+    // =========================================
     socket.on(
       "stop_typing",
       (data) => {
         try {
           const { receiverId } = data;
 
-          const receiverSocketId =
-            onlineUsers.get(receiverId);
+          const roomId = getRoomId(
+            socket.userId,
+            receiverId
+          );
 
-          if (receiverSocketId) {
-            io.to(receiverSocketId).emit(
-              "user_stop_typing",
-              {
-                senderId: socket.userId,
-              }
-            );
-          }
+          socket.to(roomId).emit(
+            "user_stop_typing",
+            {
+              senderId: socket.userId,
+            }
+          );
         } catch (error) {
           console.error(
             "Stop Typing Error:",
@@ -176,9 +205,9 @@ const initializeSocket = (server) => {
       }
     );
 
-    // ====================================
+    // =========================================
     // Disconnect
-    // ====================================
+    // =========================================
     socket.on(
       "disconnect",
       async () => {

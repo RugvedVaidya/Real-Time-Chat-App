@@ -1,6 +1,15 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
+const { createAdapter } = require(
+  "@socket.io/redis-adapter"
+);
+
+const {
+  pubClient,
+  subClient,
+} = require("../config/redis");
+
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
 
@@ -14,6 +23,16 @@ const initializeSocket = (server) => {
       origin: "*",
     },
   });
+
+  // =========================================
+  // Redis Adapter
+  // =========================================
+  io.adapter(
+    createAdapter(
+      pubClient,
+      subClient
+    )
+  );
 
   // =========================================
   // Socket Authentication Middleware
@@ -51,13 +70,20 @@ const initializeSocket = (server) => {
       `User Connected: ${socket.userId}`
     );
 
+    // =========================================
     // Store Online User
+    // =========================================
     onlineUsers.set(
       socket.userId,
       socket.id
     );
 
+    console.log("Online Users:");
+    console.log(onlineUsers);
+
+    // =========================================
     // Update User Status
+    // =========================================
     await User.findByIdAndUpdate(
       socket.userId,
       {
@@ -66,7 +92,9 @@ const initializeSocket = (server) => {
       }
     );
 
+    // =========================================
     // Broadcast Online Status
+    // =========================================
     socket.broadcast.emit(
       "user_online",
       {
@@ -74,15 +102,13 @@ const initializeSocket = (server) => {
       }
     );
 
-    console.log("Online Users:");
-    console.log(onlineUsers);
-
     // =========================================
     // Join Chat Room
     // =========================================
     socket.on("join_chat", (data) => {
-        console.log(data);
       try {
+        console.log(data);
+
         const { userId } = data;
 
         const roomId = getRoomId(
@@ -110,6 +136,8 @@ const initializeSocket = (server) => {
       "private_message",
       async (data) => {
         try {
+          console.log(data);
+
           const { receiverId, content } =
             data;
 
@@ -169,6 +197,10 @@ const initializeSocket = (server) => {
             senderId: socket.userId,
           }
         );
+
+        console.log(
+          `${socket.userId} typing in ${roomId}`
+        );
       } catch (error) {
         console.error(
           "Typing Error:",
@@ -197,6 +229,10 @@ const initializeSocket = (server) => {
               senderId: socket.userId,
             }
           );
+
+          console.log(
+            `${socket.userId} stopped typing in ${roomId}`
+          );
         } catch (error) {
           console.error(
             "Stop Typing Error:",
@@ -216,7 +252,7 @@ const initializeSocket = (server) => {
           `User Disconnected: ${socket.userId}`
         );
 
-        // Remove From Online Users
+        // Remove User
         onlineUsers.delete(
           socket.userId
         );

@@ -104,6 +104,61 @@ const initializeSocket = (server) => {
     );
 
     // =========================
+    // Typing Indicator
+    // =========================
+    socket.on("typing", (data) => {
+      try {
+        const { receiverId } = data;
+
+        const receiverSocketId =
+          onlineUsers.get(receiverId);
+
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit(
+            "user_typing",
+            {
+              senderId: socket.userId,
+            }
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Typing Error:",
+          error
+        );
+      }
+    });
+
+    // =========================
+    // Stop Typing
+    // =========================
+    socket.on(
+      "stop_typing",
+      (data) => {
+        try {
+          const { receiverId } = data;
+
+          const receiverSocketId =
+            onlineUsers.get(receiverId);
+
+          if (receiverSocketId) {
+            io.to(receiverSocketId).emit(
+              "user_stop_typing",
+              {
+                senderId: socket.userId,
+              }
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Stop Typing Error:",
+            error
+          );
+        }
+      }
+    );
+
+    // =========================
     // Disconnect
     // =========================
     socket.on("disconnect", () => {

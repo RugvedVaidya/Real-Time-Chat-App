@@ -1,19 +1,20 @@
 const User = require("../models/user.model");
 
-const getProfile = async (req, res) => {
+const getUsers = async (req, res) => {
   try {
-    const user = await User.findById(
-      req.user.userId
-    ).select("-password");
+    const currentUserId =
+      req.user.userId;
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
+    const users = await User.find({
+      _id: {
+        $ne: currentUserId,
+      },
+    }).select("-password");
 
-    return res.status(200).json(user);
+    return res.status(200).json(users);
   } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       message: "Server error",
     });
@@ -21,5 +22,5 @@ const getProfile = async (req, res) => {
 };
 
 module.exports = {
-  getProfile,
+  getUsers,
 };

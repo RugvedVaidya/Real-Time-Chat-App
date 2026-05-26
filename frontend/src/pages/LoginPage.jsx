@@ -35,6 +35,8 @@ const LoginPage = () => {
           data
         );
 
+        console.log(response.data);
+        
       const {
         user,
         accessToken,

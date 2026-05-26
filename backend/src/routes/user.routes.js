@@ -3,11 +3,11 @@ const express = require("express");
 const protect = require("../middlewares/auth.middleware");
 
 const {
-  getProfile,
+  getUsers,
 } = require("../controllers/user.controller");
 
 const router = express.Router();
 
-router.get("/profile", protect, getProfile);
+router.get("/", protect, getUsers);
 
 module.exports = router;

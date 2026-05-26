@@ -19,17 +19,19 @@ const ChatContainer = () => {
     messages,
     setMessages,
     addMessage,
+    typingUsers,
+    setTypingUsers,
   } = useChatStore();
 
   const messagesEndRef = useRef(null);
 
   // =========================================
-  // Fetch Messages + Join Room
+  // FETCH MESSAGES + JOIN ROOM
   // =========================================
   useEffect(() => {
     if (!selectedUser) return;
 
-    // Join Chat Room
+    // Join Room
     socket.emit("join_chat", {
       userId: selectedUser._id,
     });
@@ -62,7 +64,7 @@ const ChatContainer = () => {
   }, [selectedUser]);
 
   // =========================================
-  // Receive Live Messages
+  // RECEIVE LIVE MESSAGES
   // =========================================
   useEffect(() => {
     socket.on(
@@ -78,7 +80,34 @@ const ChatContainer = () => {
   }, []);
 
   // =========================================
-  // Auto Scroll
+  // TYPING EVENTS
+  // =========================================
+  useEffect(() => {
+    socket.on(
+      "user_typing",
+      ({ senderId }) => {
+        setTypingUsers([senderId]);
+      }
+    );
+
+    socket.on(
+      "user_stop_typing",
+      ({ senderId }) => {
+        setTypingUsers([]);
+      }
+    );
+
+    return () => {
+      socket.off("user_typing");
+
+      socket.off(
+        "user_stop_typing"
+      );
+    };
+  }, []);
+
+  // =========================================
+  // AUTO SCROLL
   // =========================================
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -87,7 +116,7 @@ const ChatContainer = () => {
   }, [messages]);
 
   // =========================================
-  // No Chat Selected
+  // NO CHAT SELECTED
   // =========================================
   if (!selectedUser) {
     return (
@@ -100,7 +129,7 @@ const ChatContainer = () => {
   return (
     <div className="flex-1 flex flex-col bg-slate-950 text-white">
       {/* =========================================
-          Header
+          HEADER
       ========================================= */}
       <div className="h-[80px] border-b border-slate-800 flex items-center px-6">
         <div>
@@ -118,32 +147,42 @@ const ChatContainer = () => {
           >
             {selectedUser.status}
           </p>
+
+          {typingUsers.includes(
+            selectedUser._id
+          ) && (
+            <p className="text-sm text-blue-400">
+              typing...
+            </p>
+          )}
         </div>
       </div>
 
       {/* =========================================
-          Messages
+          MESSAGES
       ========================================= */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map((message, index) => (
-          <MessageBubble
-            key={index}
-            ownMessage={
-              message.senderId !==
-              selectedUser._id
-            }
-            content={message.content}
-            time={new Date(
-              message.createdAt
-            ).toLocaleTimeString()}
-          />
-        ))}
+        {messages.map(
+          (message, index) => (
+            <MessageBubble
+              key={index}
+              ownMessage={
+                message.senderId !==
+                selectedUser._id
+              }
+              content={message.content}
+              time={new Date(
+                message.createdAt
+              ).toLocaleTimeString()}
+            />
+          )
+        )}
 
         <div ref={messagesEndRef} />
       </div>
 
       {/* =========================================
-          Input
+          INPUT
       ========================================= */}
       <ChatInput />
     </div>

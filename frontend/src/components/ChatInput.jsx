@@ -41,9 +41,21 @@ const ChatInput = () => {
         type="text"
         placeholder="Type a message..."
         value={message}
-        onChange={(e) =>
-          setMessage(e.target.value)
-        }
+        onChange={(e) => {
+            setMessage(e.target.value);
+
+            socket.emit("typing", {
+                receiverId: selectedUser._id,
+            });
+
+            clearTimeout(window.typingTimeout);
+
+            window.typingTimeout = setTimeout(() => {
+                socket.emit("stop_typing", {
+                receiverId: selectedUser._id,
+                });
+            }, 1000);
+            }}
         className="flex-1 bg-slate-800 rounded-xl px-4 py-3 outline-none"
       />
 

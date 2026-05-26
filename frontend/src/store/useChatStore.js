@@ -34,6 +34,13 @@ const useChatStore = create((set) => ({
     set({
         typingUsers: users,
     }),
+
+    onlineUsers: [],
+
+    setOnlineUsers: (users) => set({
+        onlineUsers: users,
+    }),
+    
 }));
 
 export default useChatStore;

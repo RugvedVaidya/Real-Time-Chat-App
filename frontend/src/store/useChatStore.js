@@ -40,7 +40,23 @@ const useChatStore = create((set) => ({
     setOnlineUsers: (users) => set({
         onlineUsers: users,
     }),
-    
+
+    updateMessageStatus: (
+    messageId,
+    status
+    ) =>
+    set((state) => ({
+        messages: state.messages.map(
+        (message) =>
+            message._id === messageId
+            ? {
+                ...message,
+                status,
+                }
+            : message
+        ),
+    })),
+
 }));
 
 export default useChatStore;

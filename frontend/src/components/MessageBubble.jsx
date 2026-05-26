@@ -2,6 +2,7 @@ const MessageBubble = ({
   ownMessage,
   content,
   time,
+  status,
 }) => {
   return (
     <div
@@ -20,9 +21,22 @@ const MessageBubble = ({
       >
         <p>{content}</p>
 
-        <p className="text-xs text-slate-300 mt-1 text-right">
-          {time}
-        </p>
+        <div className="flex items-center justify-end gap-2 mt-1">
+          <p className="text-xs text-slate-300">
+            {time}
+          </p>
+
+          {ownMessage && (
+            <p className="text-xs text-slate-200">
+              {status === "seen"
+                ? "Seen"
+                : status ===
+                  "delivered"
+                ? "Delivered"
+                : "Sent"}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

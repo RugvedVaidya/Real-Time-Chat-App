@@ -21,6 +21,7 @@ const ChatContainer = () => {
     addMessage,
     typingUsers,
     setTypingUsers,
+    updateMessageStatus,
   } = useChatStore();
 
   const messagesEndRef = useRef(null);
@@ -64,9 +65,10 @@ const ChatContainer = () => {
   }, [selectedUser]);
 
   // =========================================
-  // RECEIVE LIVE MESSAGES
+  // RECEIVE LIVE SOCKET EVENTS
   // =========================================
   useEffect(() => {
+    // Receive Messages
     socket.on(
       "receive_message",
       (message) => {
@@ -74,15 +76,29 @@ const ChatContainer = () => {
       }
     );
 
-    return () => {
-      socket.off("receive_message");
-    };
-  }, []);
+    // Message Delivered
+    socket.on(
+      "message_delivered",
+      ({ messageId, status }) => {
+        updateMessageStatus(
+          messageId,
+          status
+        );
+      }
+    );
 
-  // =========================================
-  // TYPING EVENTS
-  // =========================================
-  useEffect(() => {
+    // Message Seen
+    socket.on(
+      "message_seen_update",
+      ({ messageId, status }) => {
+        updateMessageStatus(
+          messageId,
+          status
+        );
+      }
+    );
+
+    // Typing
     socket.on(
       "user_typing",
       ({ senderId }) => {
@@ -90,6 +106,7 @@ const ChatContainer = () => {
       }
     );
 
+    // Stop Typing
     socket.on(
       "user_stop_typing",
       ({ senderId }) => {
@@ -98,6 +115,16 @@ const ChatContainer = () => {
     );
 
     return () => {
+      socket.off("receive_message");
+
+      socket.off(
+        "message_delivered"
+      );
+
+      socket.off(
+        "message_seen_update"
+      );
+
       socket.off("user_typing");
 
       socket.off(
@@ -105,6 +132,26 @@ const ChatContainer = () => {
       );
     };
   }, []);
+
+  // =========================================
+  // MARK MESSAGES AS SEEN
+  // =========================================
+  useEffect(() => {
+    if (!selectedUser) return;
+
+    messages.forEach((message) => {
+      if (
+        message.senderId ===
+          selectedUser._id &&
+        message.status !== "seen"
+      ) {
+        socket.emit("message_seen", {
+          messageId: message._id,
+          senderId: selectedUser._id,
+        });
+      }
+    });
+  }, [messages]);
 
   // =========================================
   // AUTO SCROLL
@@ -174,6 +221,7 @@ const ChatContainer = () => {
               time={new Date(
                 message.createdAt
               ).toLocaleTimeString()}
+              status={message.status}
             />
           )
         )}

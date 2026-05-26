@@ -6,10 +6,12 @@ const morgan = require("morgan");
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const messageRoutes = require("./routes/message.routes");
+const apiLimiter = require("./middlewares/rateLimit.middleware");
 
 const app = express();
 
 app.use(express.json());
+app.use(apiLimiter);
 
 app.use(cors());
 

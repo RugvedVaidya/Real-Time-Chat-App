@@ -2,66 +2,68 @@ import { useState } from "react";
 
 import useChatStore from "../store/useChatStore";
 
-import useAuthStore from "../store/useAuthStore";
-
 import socket from "../sockets/socket";
 
 const ChatInput = () => {
   const [message, setMessage] =
     useState("");
 
-  const selectedUser =
-    useChatStore(
-      (state) => state.selectedUser
-    );
-
-  const addMessage = useChatStore(
-    (state) => state.addMessage
-  );
-
-  const user = useAuthStore(
-    (state) => state.user
-  );
+  const { selectedUser } =
+    useChatStore();
 
   const sendMessage = () => {
     if (!message.trim()) return;
 
-    // Emit Socket Event
     socket.emit("private_message", {
-      receiverId: selectedUser._id,
+      receiverId:
+        selectedUser._id,
       content: message,
+    });
+
+    socket.emit("stop_typing", {
+      receiverId:
+        selectedUser._id,
     });
 
     setMessage("");
   };
 
+  const handleTyping = (e) => {
+    setMessage(e.target.value);
+
+    socket.emit("typing", {
+      receiverId:
+        selectedUser._id,
+    });
+
+    setTimeout(() => {
+      socket.emit(
+        "stop_typing",
+        {
+          receiverId:
+            selectedUser._id,
+        }
+      );
+    }, 1000);
+  };
+
   return (
-    <div className="p-4 border-t border-slate-800 flex gap-3">
+    <div className="flex items-center gap-3">
       <input
         type="text"
         placeholder="Type a message..."
         value={message}
-        onChange={(e) => {
-            setMessage(e.target.value);
-
-            socket.emit("typing", {
-                receiverId: selectedUser._id,
-            });
-
-            clearTimeout(window.typingTimeout);
-
-            window.typingTimeout = setTimeout(() => {
-                socket.emit("stop_typing", {
-                receiverId: selectedUser._id,
-                });
-            }, 1000);
-            }}
-        className="flex-1 bg-slate-800 rounded-xl px-4 py-3 outline-none"
+        onChange={handleTyping}
+        onKeyDown={(e) =>
+          e.key === "Enter" &&
+          sendMessage()
+        }
+        className="flex-1 bg-slate-100 rounded-2xl px-6 py-4 outline-none text-slate-700 placeholder:text-slate-400"
       />
 
       <button
         onClick={sendMessage}
-        className="bg-blue-600 hover:bg-blue-700 transition px-6 rounded-xl font-semibold"
+        className="bg-blue-500 hover:bg-blue-600 transition text-white px-8 py-4 rounded-2xl font-medium"
       >
         Send
       </button>

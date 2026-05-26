@@ -15,12 +15,17 @@ const User = require("../models/user.model");
 
 const getRoomId = require("../utils/getRoomId");
 
+const rateLimiter = require(
+  "../utils/rateLimiter"
+);
+
 const onlineUsers = new Map();
 
 const initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: "http://localhost:5173",
+      credentials: true,
     },
   });
 
@@ -63,7 +68,7 @@ const initializeSocket = (server) => {
   });
 
   // =========================================
-  // Connection Established
+  // Connection
   // =========================================
   io.on("connection", async (socket) => {
     console.log(
@@ -78,8 +83,11 @@ const initializeSocket = (server) => {
       socket.id
     );
 
-    console.log("Online Users:");
-    console.log(onlineUsers);
+    // Broadcast Online Users
+    io.emit(
+      "online_users",
+      Array.from(onlineUsers.keys())
+    );
 
     // =========================================
     // Update User Status
@@ -93,22 +101,10 @@ const initializeSocket = (server) => {
     );
 
     // =========================================
-    // Broadcast Online Status
-    // =========================================
-    socket.broadcast.emit(
-      "user_online",
-      {
-        userId: socket.userId,
-      }
-    );
-
-    // =========================================
     // Join Chat Room
     // =========================================
     socket.on("join_chat", (data) => {
       try {
-        console.log(data);
-
         const { userId } = data;
 
         const roomId = getRoomId(
@@ -136,10 +132,27 @@ const initializeSocket = (server) => {
       "private_message",
       async (data) => {
         try {
-          console.log(data);
+          const isAllowed =
+            await rateLimiter(
+              `messages:${socket.userId}`,
+              5,
+              10
+            );
 
-          const { receiverId, content } =
-            data;
+          if (!isAllowed) {
+            return socket.emit(
+              "rate_limit_exceeded",
+              {
+                message:
+                  "Too many messages. Please slow down.",
+              }
+            );
+          }
+
+          const {
+            receiverId,
+            content,
+          } = data;
 
           // Save Message
           const message =
@@ -147,23 +160,60 @@ const initializeSocket = (server) => {
               senderId: socket.userId,
               receiverId,
               content,
+              status: "sent",
             });
 
-          // Create Room ID
+          // Room ID
           const roomId = getRoomId(
             socket.userId,
             receiverId
           );
 
-          // Emit Message To Room
+          // =========================================
+          // Emit Message
+          // =========================================
           io.to(roomId).emit(
             "receive_message",
             {
-              senderId: socket.userId,
+              _id: message._id,
+
+              senderId:
+                socket.userId,
+
               receiverId,
+
               content,
+
+              status:
+                "delivered",
+
               createdAt:
                 message.createdAt,
+            }
+          );
+
+          // =========================================
+          // Update Delivered Status
+          // =========================================
+          await Message.findByIdAndUpdate(
+            message._id,
+            {
+              status:
+                "delivered",
+            }
+          );
+
+          // =========================================
+          // Emit Delivered Event
+          // =========================================
+          io.to(roomId).emit(
+            "message_delivered",
+            {
+              messageId:
+                message._id,
+
+              status:
+                "delivered",
             }
           );
 
@@ -194,12 +244,9 @@ const initializeSocket = (server) => {
         socket.to(roomId).emit(
           "user_typing",
           {
-            senderId: socket.userId,
+            senderId:
+              socket.userId,
           }
-        );
-
-        console.log(
-          `${socket.userId} typing in ${roomId}`
         );
       } catch (error) {
         console.error(
@@ -216,7 +263,8 @@ const initializeSocket = (server) => {
       "stop_typing",
       (data) => {
         try {
-          const { receiverId } = data;
+          const { receiverId } =
+            data;
 
           const roomId = getRoomId(
             socket.userId,
@@ -226,16 +274,61 @@ const initializeSocket = (server) => {
           socket.to(roomId).emit(
             "user_stop_typing",
             {
-              senderId: socket.userId,
+              senderId:
+                socket.userId,
             }
-          );
-
-          console.log(
-            `${socket.userId} stopped typing in ${roomId}`
           );
         } catch (error) {
           console.error(
             "Stop Typing Error:",
+            error
+          );
+        }
+      }
+    );
+
+    // =========================================
+    // Message Seen
+    // =========================================
+    socket.on(
+      "message_seen",
+      async (data) => {
+        try {
+          const {
+            messageId,
+            senderId,
+          } = data;
+
+          // Update DB
+          await Message.findByIdAndUpdate(
+            messageId,
+            {
+              status: "seen",
+            }
+          );
+
+          // Room ID
+          const roomId = getRoomId(
+            socket.userId,
+            senderId
+          );
+
+          // Emit Seen Update
+          io.to(roomId).emit(
+            "message_seen_update",
+            {
+              messageId,
+
+              status: "seen",
+            }
+          );
+
+          console.log(
+            `Message ${messageId} seen`
+          );
+        } catch (error) {
+          console.error(
+            "Seen Error:",
             error
           );
         }
@@ -257,25 +350,29 @@ const initializeSocket = (server) => {
           socket.userId
         );
 
+        // Broadcast Online Users
+        io.emit(
+          "online_users",
+          Array.from(
+            onlineUsers.keys()
+          )
+        );
+
         // Update User Status
         await User.findByIdAndUpdate(
           socket.userId,
           {
             status: "offline",
-            lastSeen: new Date(),
+
+            lastSeen:
+              new Date(),
           }
         );
 
-        // Broadcast Offline Status
-        socket.broadcast.emit(
-          "user_offline",
-          {
-            userId: socket.userId,
-          }
+        console.log(
+          "Online Users:",
+          onlineUsers
         );
-
-        console.log("Online Users:");
-        console.log(onlineUsers);
       }
     );
   });

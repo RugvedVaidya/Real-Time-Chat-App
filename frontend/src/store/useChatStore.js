@@ -57,6 +57,37 @@ const useChatStore = create((set) => ({
         ),
     })),
 
+    updateLastMessage: (
+  userId,
+  message
+) =>
+  set((state) => ({
+    users: state.users
+      .map((user) =>
+        user._id === userId
+          ? {
+              ...user,
+              lastMessage:
+                message,
+            }
+          : user
+      )
+      .sort((a, b) => {
+        const aTime = a.lastMessage
+          ? new Date(
+              a.lastMessage.createdAt
+            )
+          : 0;
+
+        const bTime = b.lastMessage
+          ? new Date(
+              b.lastMessage.createdAt
+            )
+          : 0;
+
+        return bTime - aTime;
+      }),
+  })),
 }));
 
 export default useChatStore;

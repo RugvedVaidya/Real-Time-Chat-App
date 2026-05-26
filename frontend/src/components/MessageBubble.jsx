@@ -13,28 +13,36 @@ const MessageBubble = ({
       }`}
     >
       <div
-        className={`max-w-[70%] px-4 py-3 rounded-2xl ${
+        className={`max-w-[60%] px-4 py-3 rounded-3xl shadow-sm ${
           ownMessage
-            ? "bg-blue-600"
-            : "bg-slate-800"
+            ? "bg-blue-500 text-white rounded-br-md"
+            : "bg-white border border-slate-200 text-slate-800 rounded-bl-md"
         }`}
       >
-        <p>{content}</p>
+        <p className="text-[15px] leading-relaxed break-words">
+          {content}
+        </p>
 
-        <div className="flex items-center justify-end gap-2 mt-1">
-          <p className="text-xs text-slate-300">
+        <div className="flex items-center justify-end gap-1 mt-2">
+          <span
+            className={`text-[11px] ${
+              ownMessage
+                ? "text-blue-100"
+                : "text-slate-400"
+            }`}
+          >
             {time}
-          </p>
+          </span>
 
           {ownMessage && (
-            <p className="text-xs text-slate-200">
+            <span className="text-[11px] text-blue-100">
               {status === "seen"
-                ? "Seen"
+                ? "✓✓"
                 : status ===
                   "delivered"
-                ? "Delivered"
-                : "Sent"}
-            </p>
+                ? "✓✓"
+                : "✓"}
+            </span>
           )}
         </div>
       </div>

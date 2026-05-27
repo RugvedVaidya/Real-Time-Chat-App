@@ -22,11 +22,13 @@ const ChatContainer = () => {
     typingUsers,
     setTypingUsers,
     updateMessageStatus,
-    updateLastMessage,
   } = useChatStore();
 
   const messagesEndRef = useRef(null);
 
+  // =========================================
+  // FETCH MESSAGES
+  // =========================================
   useEffect(() => {
     if (!selectedUser) return;
 
@@ -61,19 +63,14 @@ const ChatContainer = () => {
     fetchMessages();
   }, [selectedUser]);
 
+  // =========================================
+  // SOCKET EVENTS
+  // =========================================
   useEffect(() => {
     socket.on(
       "receive_message",
       (message) => {
         addMessage(message);
-
-        updateLastMessage(
-          message.senderId ===
-            selectedUser?._id
-            ? selectedUser._id
-            : message.receiverId,
-          message
-        );
       }
     );
 
@@ -130,18 +127,30 @@ const ChatContainer = () => {
     };
   }, [selectedUser]);
 
+  // =========================================
+  // AUTO SCROLL
+  // =========================================
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
   }, [messages]);
 
+  // =========================================
+  // EMPTY STATE
+  // =========================================
   if (!selectedUser) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[#f8fafc]">
-        <h1 className="text-5xl font-bold text-slate-300">
-          ChatFlow
-        </h1>
+        <div className="text-center">
+          <h1 className="text-6xl font-bold text-blue-200">
+            ChatFlow
+          </h1>
+
+          <p className="text-slate-400 mt-4 text-lg">
+            Start chatting with your friends
+          </p>
+        </div>
       </div>
     );
   }
@@ -149,8 +158,9 @@ const ChatContainer = () => {
   return (
     <div className="flex-1 flex flex-col bg-[#f8fafc]">
       {/* HEADER */}
-      <div className="h-[90px] bg-white border-b border-slate-200 px-8 flex items-center justify-between">
+      <div className="h-[90px] bg-white border-b border-slate-200 px-8 flex items-center">
         <div className="flex items-center gap-4">
+          {/* AVATAR */}
           <div className="relative">
             <div className="w-14 h-14 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-lg">
               {selectedUser.username
@@ -161,24 +171,20 @@ const ChatContainer = () => {
             <div className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
           </div>
 
+          {/* INFO */}
           <div>
             <h2 className="font-bold text-slate-900 text-lg">
               {selectedUser.username}
             </h2>
 
-            <p className="text-sm text-green-500">
+            <p className="text-sm text-slate-500">
               {typingUsers.includes(
                 selectedUser._id
               )
                 ? "typing..."
-                : "Online"}
+                : "online"}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-4 text-xl text-slate-500">
-          <button>📞</button>
-          <button>ℹ️</button>
         </div>
       </div>
 
@@ -192,14 +198,19 @@ const ChatContainer = () => {
                 message.senderId !==
                 selectedUser._id
               }
-              content={message.content}
+              content={
+                message.content
+              }
               time={new Date(
                 message.createdAt
               ).toLocaleTimeString([], {
                 hour: "2-digit",
-                minute: "2-digit",
+                minute:
+                  "2-digit",
               })}
-              status={message.status}
+              status={
+                message.status
+              }
             />
           )
         )}
@@ -208,7 +219,7 @@ const ChatContainer = () => {
       </div>
 
       {/* INPUT */}
-      <div className="bg-white border-t border-slate-200 px-6 py-4">
+      <div className="bg-[#f1f5f9] border-t border-slate-200 px-6 py-4">
         <ChatInput />
       </div>
     </div>

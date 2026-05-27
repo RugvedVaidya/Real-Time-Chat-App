@@ -2,33 +2,54 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
+
 import RegisterPage from "./pages/RegisterPage";
+
 import ChatPage from "./pages/ChatPage";
-import ProtectedRoute from "./routes/ProtectedRoute";
 
 function App() {
+  const token =
+    localStorage.getItem(
+      "accessToken"
+    );
+
   return (
     <BrowserRouter>
       <Routes>
         <Route
           path="/login"
-          element={<LoginPage />}
+          element={
+            token ? (
+              <Navigate to="/" />
+            ) : (
+              <LoginPage />
+            )
+          }
         />
 
         <Route
           path="/register"
-          element={<RegisterPage />}
+          element={
+            token ? (
+              <Navigate to="/" />
+            ) : (
+              <RegisterPage />
+            )
+          }
         />
 
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            token ? (
               <ChatPage />
-            </ProtectedRoute>
+            ) : (
+              <Navigate to="/login" />
+            )
           }
         />
       </Routes>

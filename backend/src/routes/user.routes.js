@@ -1,13 +1,34 @@
 const express = require("express");
 
-const protect = require("../middlewares/auth.middleware");
+const router = express.Router();
 
 const {
   getUsers,
-} = require("../controllers/user.controller");
+  getConversations,
+} = require(
+  "../controllers/user.controller"
+);
 
-const router = express.Router();
+const protectRoute = require(
+  "../middlewares/protectRoute"
+);
 
-router.get("/", protect, getUsers);
+// =========================================
+// GET USERS
+// =========================================
+router.get(
+  "/",
+  protectRoute,
+  getUsers
+);
+
+// =========================================
+// GET CONVERSATIONS
+// =========================================
+router.get(
+  "/conversations",
+  protectRoute,
+  getConversations
+);
 
 module.exports = router;

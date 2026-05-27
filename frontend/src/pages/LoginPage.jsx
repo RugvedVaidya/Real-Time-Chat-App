@@ -1,120 +1,200 @@
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 
-import { useNavigate, Link } from "react-router-dom";
-
-import toast from "react-hot-toast";
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
 
 import axiosInstance from "../lib/axios";
 
-import useAuthStore from "../store/useAuthStore";
-
-import socket from "../sockets/socket";
-
-import AuthLayout from "../layouts/AuthLayout";
-
 const LoginPage = () => {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const { register, handleSubmit } =
-    useForm();
+  const [showPassword,
+    setShowPassword] =
+    useState(false);
 
-  const setUser = useAuthStore(
-    (state) => state.setUser
-  );
+  const [formData,
+    setFormData] =
+    useState({
+      email: "",
+      password: "",
+    });
 
-  const setAccessToken =
-    useAuthStore(
-      (state) => state.setAccessToken
-    );
-
-  const onSubmit = async (data) => {
-    try {
-      const response =
-        await axiosInstance.post(
-          "/auth/login",
-          data
-        );
-
-        console.log(response.data);
-        
-      const {
-        user,
-        accessToken,
-      } = response.data;
-
-      // Save To Zustand
-      setUser(user);
-
-      setAccessToken(accessToken);
-
-      // Save Token
-      localStorage.setItem(
-        "accessToken",
-        accessToken
-      );
-
-      // Connect Socket
-      socket.auth = {
-        token: accessToken,
-      };
-
-      socket.connect();
-
-      toast.success(
-        "Login successful"
-      );
-
-      navigate("/");
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-          "Login failed"
-      );
-    }
+  // =========================================
+  // HANDLE CHANGE
+  // =========================================
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]:
+        e.target.value,
+    });
   };
 
+  // =========================================
+  // HANDLE LOGIN
+  // =========================================
+  const handleLogin =
+    async (e) => {
+      e.preventDefault();
+
+      try {
+        const response =
+          await axiosInstance.post(
+            "/auth/login",
+            formData
+          );
+
+        console.log(
+          "LOGIN RESPONSE:",
+          response.data
+        );
+
+        // =====================================
+        // TOKEN
+        // =====================================
+        const token =
+          response.data.token ||
+          response.data.accessToken;
+
+        if (!token) {
+          alert(
+            "Token not found in response"
+          );
+
+          return;
+        }
+
+        // =====================================
+        // STORE TOKEN
+        // =====================================
+        localStorage.setItem(
+          "accessToken",
+          token
+        );
+
+        // =====================================
+        // NAVIGATE
+        // =====================================
+        navigate("/");
+      } catch (error) {
+        console.log(error);
+
+        alert(
+          error?.response?.data
+            ?.message ||
+            "Login failed"
+        );
+      }
+    };
+
   return (
-    <AuthLayout>
-      <h1 className="text-3xl font-bold text-center mb-8">
-        Welcome Back
-      </h1>
+    <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-10">
+        {/* LOGO */}
+        <div className="text-center mb-10">
+          <h1 className="text-5xl font-bold text-blue-500">
+            ChatFlow
+          </h1>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-5"
-      >
-        <input
-          type="email"
-          placeholder="Email"
-          {...register("email")}
-          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-        />
+          <p className="text-slate-500 mt-3">
+            Welcome back
+          </p>
+        </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          {...register("password")}
-          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500"
-        />
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 transition rounded-xl py-3 font-semibold"
+        {/* FORM */}
+        <form
+          onSubmit={
+            handleLogin
+          }
+          className="space-y-5"
         >
-          Login
-        </button>
-      </form>
+          {/* EMAIL */}
+          <div>
+            <label className="text-sm font-medium text-slate-600">
+              Email
+            </label>
 
-      <p className="text-center mt-6 text-slate-400">
-        Don’t have an account?{" "}
-        <Link
-          to="/register"
-          className="text-blue-500"
-        >
-          Register
-        </Link>
-      </p>
-    </AuthLayout>
+            <input
+              type="email"
+              name="email"
+              value={
+                formData.email
+              }
+              onChange={
+                handleChange
+              }
+              placeholder="Enter email"
+              className="w-full mt-2 bg-slate-100 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:border-blue-400 text-slate-700"
+              required
+            />
+          </div>
+
+          {/* PASSWORD */}
+          <div>
+            <label className="text-sm font-medium text-slate-600">
+              Password
+            </label>
+
+            <div className="relative mt-2">
+              <input
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                name="password"
+                value={
+                  formData.password
+                }
+                onChange={
+                  handleChange
+                }
+                placeholder="Enter password"
+                className="w-full bg-slate-100 border border-slate-200 rounded-2xl px-5 py-4 outline-none focus:border-blue-400 text-slate-700"
+                required
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(
+                    !showPassword
+                  )
+                }
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500"
+              >
+                {showPassword
+                  ? "🙈"
+                  : "👁️"}
+              </button>
+            </div>
+          </div>
+
+          {/* BUTTON */}
+          <button
+            type="submit"
+            className="w-full bg-blue-500 hover:bg-blue-600 transition text-white py-4 rounded-2xl font-semibold text-lg shadow-sm"
+          >
+            Login
+          </button>
+        </form>
+
+        {/* FOOTER */}
+        <p className="text-center text-slate-500 mt-8">
+          Don’t have an
+          account?{" "}
+          <Link
+            to="/register"
+            className="text-blue-500 font-medium hover:underline"
+          >
+            Register
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 };
 

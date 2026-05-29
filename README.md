@@ -18,5 +18,5 @@ A scalable real-time chat backend built using Node.js, Express.js, Socket.IO, Mo
 - Socket.IO
 - JWT
 - bcrypt
-- Redis (Upcoming)
+- Redis
 - BullMQ (Upcoming)
